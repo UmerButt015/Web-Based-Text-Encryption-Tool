@@ -1,0 +1,318 @@
+<!-- frontend.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Encryption Tool - WORKING</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 8px;
+        }
+        
+        .content {
+            padding: 25px;
+        }
+        
+        .status {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        select, input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        .encrypt-btn { background: #27ae60; }
+        .decrypt-btn { background: #e74c3c; }
+        .hash-btn { background: #9b59b6; }
+        .copy-btn { background: #3498db; }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Encryption Tool</h1>
+            <p>Secure your messages with encryption algorithms</p>
+        </div>
+        
+        <div class="content">
+            <div class="status">
+                ✅ Backend Connected - Ready to Use!
+            </div>
+            
+            <div id="alert"></div>
+            
+            <div class="input-group">
+                <label>Encryption Algorithm:</label>
+                <select id="algorithm">
+                    <option value="caesar">Caesar Cipher</option>
+                    <option value="base64">Base64 Encoding</option>
+                    <option value="aes">AES Encryption</option>
+                    <option value="des">DES Encryption</option>
+                    <option value="sha256">SHA-256 Hash</option>
+                </select>
+            </div>
+            
+            <div class="input-group" id="keyGroup">
+                <label>Encryption Key:</label>
+                <input type="text" id="key" value="3" placeholder="Enter key">
+            </div>
+            
+            <div class="input-group">
+                <label>Input Text:</label>
+                <textarea id="inputText" placeholder="Enter your text here...">my name is uner ateeq ok</textarea>
+            </div>
+            
+            <div class="buttons">
+                <button class="encrypt-btn" onclick="encryptText()">🔒 Encrypt</button>
+                <button class="decrypt-btn" onclick="decryptText()">🔓 Decrypt</button>
+                <button class="hash-btn" onclick="hashText()" style="display: none;">⚡ Hash</button>
+                <button class="copy-btn" onclick="copyResult()">📋 Copy</button>
+            </div>
+            
+            <div class="input-group">
+                <label>Result:</label>
+                <textarea id="result" placeholder="Result will appear here..." readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Backend URL - Update this with your actual backend URL
+        const API_URL = 'http://localhost:5000'; // Change this to your backend URL
+        
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.innerHTML = `<div class="alert ${type}">${message}</div>`;
+            setTimeout(() => alertDiv.innerHTML = '', 4000);
+        }
+        
+        async function callEndpoint(endpoint, data) {
+            try {
+                const response = await fetch(`${API_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                return await response.json();
+            } catch (error) {
+                showAlert('Connection error: ' + error.message, 'error');
+                return { error: 'Connection failed' };
+            }
+        }
+        
+        async function encryptText() {
+            const algorithm = document.getElementById('algorithm').value;
+            const inputText = document.getElementById('inputText').value;
+            const key = document.getElementById('key').value;
+            
+            if (!inputText.trim()) {
+                showAlert('Please enter some text to encrypt', 'error');
+                return;
+            }
+            
+            const data = { text: inputText, algorithm: algorithm };
+            if (algorithm !== 'base64' && algorithm !== 'sha256') {
+                if (!key.trim()) {
+                    showAlert('Encryption key is required', 'error');
+                    return;
+                }
+                data.key = key;
+            }
+            
+            showAlert('Encrypting...', 'info');
+            const result = await callEndpoint('encrypt', data);
+            
+            if (result.success) {
+                document.getElementById('result').value = result.result;
+                showAlert('Text encrypted successfully!', 'success');
+            } else {
+                showAlert('Error: ' + result.error, 'error');
+            }
+        }
+        
+        async function decryptText() {
+            const algorithm = document.getElementById('algorithm').value;
+            const inputText = document.getElementById('inputText').value;
+            const key = document.getElementById('key').value;
+            
+            if (!inputText.trim()) {
+                showAlert('Please enter some text to decrypt', 'error');
+                return;
+            }
+            
+            if (algorithm === 'sha256') {
+                showAlert('Cannot decrypt hash values', 'error');
+                return;
+            }
+            
+            const data = { text: inputText, algorithm: algorithm };
+            if (algorithm !== 'base64') {
+                if (!key.trim()) {
+                    showAlert('Decryption key is required', 'error');
+                    return;
+                }
+                data.key = key;
+            }
+            
+            showAlert('Decrypting...', 'info');
+            const result = await callEndpoint('decrypt', data);
+            
+            if (result.success) {
+                document.getElementById('result').value = result.result;
+                showAlert('Text decrypted successfully!', 'success');
+            } else {
+                showAlert('Error: ' + result.error, 'error');
+            }
+        }
+        
+        async function hashText() {
+            const inputText = document.getElementById('inputText').value;
+            
+            if (!inputText.trim()) {
+                showAlert('Please enter some text to hash', 'error');
+                return;
+            }
+            
+            showAlert('Hashing...', 'info');
+            const result = await callEndpoint('hash', { text: inputText });
+            
+            if (result.success) {
+                document.getElementById('result').value = result.result;
+                showAlert('Text hashed successfully!', 'success');
+            } else {
+                showAlert('Error: ' + result.error, 'error');
+            }
+        }
+        
+        function copyResult() {
+            const result = document.getElementById('result');
+            if (!result.value.trim()) {
+                showAlert('No result to copy', 'error');
+                return;
+            }
+            
+            result.select();
+            document.execCommand('copy');
+            showAlert('Copied to clipboard!', 'success');
+        }
+        
+        // Update UI based on algorithm
+        document.getElementById('algorithm').addEventListener('change', function() {
+            const algo = this.value;
+            const keyGroup = document.getElementById('keyGroup');
+            const hashBtn = document.querySelector('.hash-btn');
+            
+            if (algo === 'base64' || algo === 'sha256') {
+                keyGroup.style.display = 'none';
+            } else {
+                keyGroup.style.display = 'block';
+            }
+            
+            if (algo === 'sha256') {
+                hashBtn.style.display = 'block';
+                document.querySelector('.decrypt-btn').style.display = 'none';
+            } else {
+                hashBtn.style.display = 'none';
+                document.querySelector('.decrypt-btn').style.display = 'block';
+            }
+        });
+        
+        // Initial UI setup
+        document.getElementById('algorithm').dispatchEvent(new Event('change'));
+    </script>
+</body>
+</html>
