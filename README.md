@@ -68,6 +68,4 @@ How it works: Always produces same 64-character code for same text
 Example: "password" always gives same hash code
 Important: Cannot be reversed to original text
 
-Best for: Password storage, file verification
 
-Key needed: No
